@@ -17,8 +17,8 @@ struct line {
    size_t generations;
 };
 
-void generate_line( size_t width, uint8_t* buffer );
 #ifndef USE_CUDA
+void generate_line( size_t width, uint8_t* buffer );
 float fitness_score(
    int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test );
 void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width );
