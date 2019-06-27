@@ -53,19 +53,19 @@ void fitness_score_add(
    int stride = blockDim.x;
 
    for( ; float_width > i ; i += stride ) {
-      out[i] = 5; //abs( (buffer_tgt[i] - buffer_test[i]) );
+      out[i] = fabs( (buffer_tgt[i] - buffer_test[i]) );
    }
 }
 
 #include <stdio.h>
-extern "C" float fitness_score(
+extern "C" score_t fitness_score(
    int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
 ) {
    float* d_line_master = NULL;
    float* d_candidate = NULL;
    float* d_out_diffs = NULL;
    float* out_diffs = NULL;
-   float out = 0;
+   score_t out = 0;
    int i = 0;
    int float_width = 0;
 
@@ -75,28 +75,36 @@ extern "C" float fitness_score(
 
    float_width = width / 4;
 
-   out_diffs = (float*)calloc( 1, width );
+   out_diffs = (float*)calloc( 1, float_width * sizeof( float ) );
 
-   cudaMalloc( (void**)&d_out_diffs, width );
-   cudaMalloc( (void**)&d_candidate, width );
-   cudaMalloc( (void**)&d_line_master, width );
+   cudaMalloc( (void**)&d_out_diffs, float_width * sizeof( float ) );
+   cudaMalloc( (void**)&d_candidate, float_width * sizeof( float ) );
+   cudaMalloc( (void**)&d_line_master, float_width * sizeof( float ) );
 
-   cudaMemcpy( d_candidate, buffer_test, width, cudaMemcpyHostToDevice );
-   cudaMemcpy( d_line_master, buffer_tgt, width, cudaMemcpyHostToDevice );
+   cudaMemcpy(
+      d_candidate, buffer_test, float_width * sizeof( float ),
+      cudaMemcpyHostToDevice );
+   cudaMemcpy(
+      d_line_master, buffer_tgt, float_width * sizeof( float ),
+      cudaMemcpyHostToDevice );
 
    fitness_score_add<<<0, 256>>>(
       d_out_diffs, d_line_master, d_candidate, float_width );
 
-   cudaMemcpy( &out_diffs, d_out_diffs, width, cudaMemcpyDeviceToHost );
+   cudaMemcpy( &out_diffs, d_out_diffs, float_width, cudaMemcpyDeviceToHost );
 
-   for( i = 0 ; width > i ; i++ ) {
+   /* for( i = 0 ; width > i ; i++ ) {
       printf( "%f\n", out_diffs[i] );
-   }
+   } */
 
    cudaFree( d_line_master );
    cudaFree( d_candidate );
    cudaFree( d_out_diffs );
    free( out_diffs );
+
+   for( i = 0 ; float_width > i ; i++ ) {
+      out += ceil( out_diffs[i] );
+   }
 
    return out;
 }
