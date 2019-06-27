@@ -6,21 +6,27 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef USE_CUDA
+#include <cuda.h>
+#include <cuda_runtime.h>
+#endif /* USE_CUDA */
+
 #include "util.h"
 
 void generate_line( size_t width, uint8_t* buffer ) {
    int i = 0;
 
-   for( i = 0 ; width * PX_BYTES > i ; i++ ) {
+   for( i = 0 ; width > i ; i++ ) {
       buffer[i] = rand() % 256;
    }
 }
 
-int fitness_score(
-   size_t width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
+#ifndef USE_CUDA
+float fitness_score(
+   int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
 ) {
    int i = 0;
-   int score = 0;
+   float score = 0;
 
    for( i = 0 ; width * PX_BYTES > i ; i++ ) {
       score += abs( (buffer_tgt[i] - buffer_test[i]) );
@@ -30,6 +36,7 @@ int fitness_score(
 
    return UINT8_MAX - score;
 }
+#endif /* USE_CUDA */
 
 void combine_lines( size_t len, uint8_t* line_dest, const uint8_t* line_src ) {
    int i = 0;
@@ -53,11 +60,15 @@ void* evolve_thread( void* line_raw ) {
    uint8_t* top_candidate = NULL;
    uint8_t* provisional_candidate = NULL;
    struct line* line = (struct line*)line_raw;
-   int i = 0, j = 0, generation = 0, provisional_score = 0,
-      high_provisional_score = 0, high_provisional_idx = 0,
+   int i = 0, j = 0, generation = 0,
+      high_provisional_idx = 0,
       top_score_idx = 0;
+   float provisional_score = 0, high_provisional_score = 0;
 
-   provisional_candidate = calloc( line->width * PX_BYTES, sizeof( uint8_t ) );
+   provisional_candidate = calloc( line->byte_width, sizeof( uint8_t ) );
+
+#ifdef USE_CUDA
+#endif /* USE_CUDA */
 
    for( generation = 0 ; line->generations > generation ; generation++ ) {
       high_provisional_score = 0;
@@ -66,7 +77,9 @@ void* evolve_thread( void* line_raw ) {
       for( i = 0 ; MAX_CANDIDATES > i ; i++ ) {
          /* Get the score for this candidate. */
          candidate = &(line->candidates[i]);
-         scores[i] = fitness_score( line->width, line->line_master, candidate );
+
+         scores[i] = fitness_score( line->byte_width, line->line_master,
+            candidate );
          if( scores[i] > scores[top_score_idx] ) {
             top_score_idx = i;
          }
@@ -81,12 +94,12 @@ void* evolve_thread( void* line_raw ) {
          memcpy(
             provisional_candidate, 
             &(line->candidates[top_score_idx]),
-            line->width * PX_BYTES
+            line->byte_width
          );
          combine_lines(
-            line->width, provisional_candidate,
+            line->byte_width, provisional_candidate,
             &(line->candidates[i]) );
-         provisional_score = fitness_score( line->width, line->line_master,
+         provisional_score = fitness_score( line->byte_width, line->line_master,
             provisional_candidate );
          if( provisional_score > high_provisional_score ) {
             high_provisional_idx = i;
@@ -102,24 +115,25 @@ void* evolve_thread( void* line_raw ) {
       memcpy(
          provisional_candidate, 
          &(line->candidates[top_score_idx]),
-         line->width * PX_BYTES
+         line->byte_width
       );
       combine_lines(
-         line->width, provisional_candidate,
+         line->byte_width,
+         provisional_candidate,
          &(line->candidates[high_provisional_idx]) );
 
       /* Copy provisional candidate to first candidate slot. */
       memcpy(
          &(line->candidates[0]),
          provisional_candidate,
-         line->width * PX_BYTES
+         line->byte_width
       );
 
       /* Generate new lines based on new top score. */
       top_candidate = &(line->candidates[0]);
       for( i = 1 ; MAX_CANDIDATES / 2 > i ; i++ ) {
          candidate = &(line->candidates[i]);
-         for( j = 0 ; line->width * PX_BYTES > j ; j++ ) {
+         for( j = 0 ; line->byte_width > j ; j++ ) {
             /* Subtle mutation per pixel. */
             if( 0 == rand() / 10 ) {
                candidate[j] = top_candidate[j] + (rand() % 3);
@@ -131,12 +145,12 @@ void* evolve_thread( void* line_raw ) {
 
       /* Generate some radical new lines. */
       for( i = MAX_CANDIDATES / 2 ; MAX_CANDIDATES > i ; i++ ) {
-         generate_line( line->width, &(line->candidates[i]) );
+         generate_line( line->byte_width, &(line->candidates[i]) );
       }
    }
 
    top_candidate = &(line->candidates[top_score_idx]);
-   memcpy( &(line->line_blank[0]), top_candidate, line->width * PX_BYTES );
+   memcpy( &(line->line_blank[0]), top_candidate, line->byte_width );
 
    free( provisional_candidate );
    free( line->candidates );
