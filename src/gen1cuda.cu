@@ -43,6 +43,10 @@ extern "C" float fitness_score(
 
    cudaMemcpy( &out, d_score_total, sizeof( float ), cudaMemcpyDeviceToHost );
 
+   cudaFree( d_line_master );
+   cudaFree( d_candidate );
+   cudaFree( d_score_total );
+
    return out;
 }
 
