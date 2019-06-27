@@ -13,7 +13,8 @@
 
 #include "util.h"
 
-void generate_line( size_t width, uint8_t* buffer ) {
+#ifndef USE_CUDA
+void generate_line( uint8_t* buffer, int width ) {
    int i = 0;
 
    for( i = 0 ; width > i ; i++ ) {
@@ -21,7 +22,6 @@ void generate_line( size_t width, uint8_t* buffer ) {
    }
 }
 
-#ifndef USE_CUDA
 float fitness_score(
    int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
 ) {

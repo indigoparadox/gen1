@@ -6,14 +6,42 @@
 #include <curand.h>
 #include <curand_kernel.h>
 #include <math.h>
+#include <assert.h>
 
 __global__
-void generate_line_c( uint8_t* buffer, int width ) {
+void setup_curand( int* init, curandState *state ) {
+   int idx = threadIdx.x;
+
+   curand_init( *init, idx, 0, &state[idx] );
+}
+
+__global__
+void generate_line_c( curandState* state, uint8_t* buffer, int width ) {
+   int idx = threadIdx.x;
    int i = 0;
+   float f_rand;
 
    for( i = 0 ; width > i ; i++ ) {
-      buffer[i] = rand() % 256;
+      f_rand = curand_uniform( state + idx );
+      f_rand *= (UINT8_MAX + 0.999999);
+
+      buffer[i] = (uint8_t)truncf( f_rand );
    }
+}
+
+extern "C" void generate_line( uint8_t* buffer, int width ) {
+   curandState *d_state = NULL;
+   int init_time = 0;
+
+   cudaMalloc( &d_state, sizeof( curandState ) * 256 );
+
+   init_time = time( NULL );
+
+   setup_curand<<<1, 1>>>( &init_time, d_state );
+
+   generate_line_c<<<0, 256>>>( d_state, buffer, width );
+
+   cudaFree( d_state );
 }
 
 __global__
