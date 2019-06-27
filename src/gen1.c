@@ -86,6 +86,7 @@ void* evolve_thread( void* line_raw ) {
       log_out( "[T%d-G%d/%d] Top score: %d (%d)\n", 
          line->idx, generation, line->generations,
          scores[top_score_idx], top_score_idx );
+      csv_out( "%d,%d,%d\n", line->idx, generation, scores[top_score_idx] );
 
       /* Create provisional candidates and get their scores. */
       for( i = 0 ; MAX_CANDIDATES > i ; i++ ) {

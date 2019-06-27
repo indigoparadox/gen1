@@ -28,11 +28,16 @@ int main( int argc, char** argv ) {
    size_t generations = MAX_GENERATIONS;
    int start_line = 0;
    int end_line = 0;
+   char* csvname = NULL;
 
-   while( (c = getopt( argc, argv, "b:l:g:s:e:o:t:" )) != -1 ) {
+   while( (c = getopt( argc, argv, "b:l:g:s:e:o:t:c:" )) != -1 ) {
       switch( c ) {
       case 'b':
          filename = optarg;
+         break;
+
+      case 'c':
+         csvname = optarg;
          break;
 
       case 'l':
@@ -62,6 +67,7 @@ int main( int argc, char** argv ) {
    srand( time( NULL ) );
 
    log_open( logname );
+   csv_open( csvname );
 
    filesize = open_bmp( filename, &bmp_map, &info, &bmp_data );
 
@@ -99,6 +105,7 @@ int main( int argc, char** argv ) {
       end_line = info->height - 1;
    }
 
+   csv_out( "Thread,Generation,TopScore\n" );
    for( y = end_line ; start_line <= y ; y-- ) {
       i = (y * (info->width * PX_BYTES));
 
