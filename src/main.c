@@ -22,7 +22,7 @@ int main( int argc, char** argv ) {
    struct line* line = NULL;
    FILE* canvas_file = NULL;
    int c = 0;
-   char* filename = NULL;
+   char* filename = "home.bmp";
    char* logname = NULL;
    char* outname = "out.bmp";
    size_t generations = MAX_GENERATIONS;
@@ -77,15 +77,18 @@ int main( int argc, char** argv ) {
       info->size, info->width, info->height, info->colors,
       info->xppm, info->yppm,info->bpp );
 
+   /* Allocate an output bitmap of the same size as the input. */
    canvas_whole = calloc( filesize, sizeof( uint8_t ) );
    assert( NULL != canvas_whole );
    canvas = &(canvas_whole[
       sizeof( struct bmp_header ) + sizeof( struct bmp_info )]);
 
+   /* Copy the headers to the new bitmap. */
    memcpy( canvas_whole, bmp_map, sizeof( struct bmp_header ) );
    memcpy( &(canvas_whole[sizeof( struct bmp_header )]),
       &(bmp_map[sizeof( struct bmp_header )]), sizeof( struct bmp_info ) );
 
+   /* Allocate a thread pool. */
    threads = calloc( info->height, sizeof( pthread_t ) );
 
    assert( start_line <= end_line );
@@ -100,14 +103,15 @@ int main( int argc, char** argv ) {
       i = (y * (info->width * PX_BYTES));
 
       line = calloc( 1, sizeof( struct line ) );
-      line->width = info->width;
+      line->byte_width = info->width * PX_BYTES;
       line->idx = y;
       line->generations = generations;
       line->line_master = &(bmp_data[i]);
       line->line_blank = &(canvas[i]);
-      line->candidates = calloc( MAX_CANDIDATES, info->width * PX_BYTES );
+      line->candidates = calloc(
+         MAX_CANDIDATES, info->width * PX_BYTES );
       for( j = 0 ; MAX_CANDIDATES > j ; j++ ) {
-         generate_line( info->width,
+         generate_line( line->byte_width,
             &(line->candidates[j * info->width * PX_BYTES]) );
       }
 
