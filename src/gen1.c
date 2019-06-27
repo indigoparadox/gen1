@@ -36,9 +36,8 @@ float fitness_score(
 
    return UINT8_MAX - score;
 }
-#endif /* USE_CUDA */
 
-void combine_lines( size_t len, uint8_t* line_dest, const uint8_t* line_src ) {
+void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width ) {
    int i = 0;
 
    /* memcpy(
@@ -47,12 +46,14 @@ void combine_lines( size_t len, uint8_t* line_dest, const uint8_t* line_src ) {
       (line->width * PX_BYTES) / 2
    ); */
 
-   for( i = 0 ; len > i ; i++ ) {
+   for( i = 0 ; width > i ; i++ ) {
       if( 0 == i % 2 ) {
          line_dest[i] = line_src[i];
       }
    }
 }
+
+#endif /* !USE_CUDA */
 
 void* evolve_thread( void* line_raw ) {
    int scores[MAX_CANDIDATES] = { 0 };
@@ -97,8 +98,8 @@ void* evolve_thread( void* line_raw ) {
             line->byte_width
          );
          combine_lines(
-            line->byte_width, provisional_candidate,
-            &(line->candidates[i]) );
+            provisional_candidate,
+            &(line->candidates[i]), line->byte_width );
          provisional_score = fitness_score( line->byte_width, line->line_master,
             provisional_candidate );
          if( provisional_score > high_provisional_score ) {
@@ -118,9 +119,9 @@ void* evolve_thread( void* line_raw ) {
          line->byte_width
       );
       combine_lines(
-         line->byte_width,
          provisional_candidate,
-         &(line->candidates[high_provisional_idx]) );
+         &(line->candidates[high_provisional_idx]),
+         line->byte_width );
 
       /* Copy provisional candidate to first candidate slot. */
       memcpy(
