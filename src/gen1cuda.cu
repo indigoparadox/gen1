@@ -1,10 +1,20 @@
 
 #include "gen1.h"
 
-#ifdef USE_CUDA
 #include <cuda.h>
 #include <cuda_runtime.h>
-#endif /* USE_CUDA */
+#include <curand.h>
+#include <curand_kernel.h>
+#include <math.h>
+
+__global__
+void generate_line_c( uint8_t* buffer, int width ) {
+   int i = 0;
+
+   for( i = 0 ; width > i ; i++ ) {
+      buffer[i] = rand() % 256;
+   }
+}
 
 __global__
 void fitness_score_add(
