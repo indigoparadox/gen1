@@ -23,6 +23,15 @@ START_TEST( check_combine_lines ) {
 }
 END_TEST
 
+START_TEST( check_fitness_score ) {
+   int score = 0;
+
+   score = fitness_score( 10, g_test_str_1, g_test_str_2 );
+
+   ck_assert_int_eq( score, 3 );
+}
+END_TEST
+
 Suite* gen_suite( void ) {
    Suite* s;
    TCase* tc_core;
@@ -33,6 +42,7 @@ Suite* gen_suite( void ) {
    tc_core = tcase_create( "core" );
    
    tcase_add_loop_test( tc_core, check_combine_lines, 0, 10 );
+   tcase_add_test( tc_core, check_fitness_score );
 
    suite_add_tcase( s, tc_core );
 

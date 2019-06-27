@@ -16,7 +16,9 @@ void generate_line( size_t width, uint8_t* buffer ) {
    }
 }
 
-int fitness_score( size_t width, uint8_t* buffer_tgt, uint8_t* buffer_test ) {
+int fitness_score(
+   size_t width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
+) {
    int i = 0;
    int score = 0;
 
@@ -115,7 +117,7 @@ void* evolve_thread( void* line_raw ) {
 
       /* Generate new lines based on new top score. */
       top_candidate = &(line->candidates[0]);
-      for( i = 1 ; MAX_CANDIDATES > i ; i++ ) {
+      for( i = 1 ; MAX_CANDIDATES / 2 > i ; i++ ) {
          candidate = &(line->candidates[i]);
          for( j = 0 ; line->width * PX_BYTES > j ; j++ ) {
             /* Subtle mutation per pixel. */
@@ -125,6 +127,11 @@ void* evolve_thread( void* line_raw ) {
                candidate[j] = top_candidate[j] - (rand() % 3);
             }
          }
+      }
+
+      /* Generate some radical new lines. */
+      for( i = MAX_CANDIDATES / 2 ; MAX_CANDIDATES > i ; i++ ) {
+         generate_line( line->width, &(line->candidates[i]) );
       }
    }
 
