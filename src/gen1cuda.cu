@@ -1,4 +1,6 @@
 
+#include "gen1.h"
+
 #ifdef USE_CUDA
 #include <cuda.h>
 #include <cuda_runtime.h>
