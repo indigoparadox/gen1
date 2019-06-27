@@ -21,8 +21,8 @@ void generate_line( size_t width, uint8_t* buffer );
 #ifndef USE_CUDA
 float fitness_score(
    int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test );
+void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width );
 #endif /* USE_CUDA */
-void combine_lines( size_t len, uint8_t* line_dest, const uint8_t* line_src );
 void get_highest_2_scores_idx( int* scores, size_t scores_len, int* top2 );
 void* evolve_thread( void* line_raw );
 
