@@ -14,7 +14,7 @@
 #include "util.h"
 
 #ifndef USE_CUDA
-void generate_line( uint8_t* buffer, int width ) {
+void generate_line( int width, uint8_t* buffer ) {
    int i = 0;
 
    for( i = 0 ; width > i ; i++ ) {
@@ -22,19 +22,19 @@ void generate_line( uint8_t* buffer, int width ) {
    }
 }
 
-float fitness_score(
+score_t fitness_score(
    int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
 ) {
    int i = 0;
-   float score = 0;
+   score_t score = 0;
 
    for( i = 0 ; width * PX_BYTES > i ; i++ ) {
       score += abs( (buffer_tgt[i] - buffer_test[i]) );
    }
 
-   score /= (width * PX_BYTES);
+   //score /= (width * PX_BYTES);
 
-   return UINT8_MAX - score;
+   return UINT16_MAX - score;
 }
 
 void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width ) {
@@ -56,7 +56,7 @@ void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width ) {
 #endif /* !USE_CUDA */
 
 void* evolve_thread( void* line_raw ) {
-   int scores[MAX_CANDIDATES] = { 0 };
+   score_t scores[MAX_CANDIDATES] = { 0 };
    uint8_t* candidate = NULL;
    uint8_t* top_candidate = NULL;
    uint8_t* provisional_candidate = NULL;
@@ -64,12 +64,9 @@ void* evolve_thread( void* line_raw ) {
    int i = 0, j = 0, generation = 0,
       high_provisional_idx = 0,
       top_score_idx = 0;
-   float provisional_score = 0, high_provisional_score = 0;
+   score_t provisional_score = 0, high_provisional_score = 0;
 
    provisional_candidate = calloc( line->byte_width, sizeof( uint8_t ) );
-
-#ifdef USE_CUDA
-#endif /* USE_CUDA */
 
    for( generation = 0 ; line->generations > generation ; generation++ ) {
       high_provisional_score = 0;
@@ -137,9 +134,9 @@ void* evolve_thread( void* line_raw ) {
          for( j = 0 ; line->byte_width > j ; j++ ) {
             /* Subtle mutation per pixel. */
             if( 0 == rand() / 10 ) {
-               candidate[j] = top_candidate[j] + (rand() % 3);
+               candidate[j] = top_candidate[j] + (rand() % 30);
             } else {
-               candidate[j] = top_candidate[j] - (rand() % 3);
+               candidate[j] = top_candidate[j] - (rand() % 30);
             }
          }
       }

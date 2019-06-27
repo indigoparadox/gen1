@@ -29,7 +29,7 @@ int main( int argc, char** argv ) {
    int start_line = 0;
    int end_line = 0;
 
-   while( (c = getopt( argc, argv, "b:l:g:s:e:o:" )) != -1 ) {
+   while( (c = getopt( argc, argv, "b:l:g:s:e:o:t:" )) != -1 ) {
       switch( c ) {
       case 'b':
          filename = optarg;
