@@ -46,15 +46,59 @@ extern "C" void generate_line( uint8_t* buffer, int width ) {
 
 __global__
 void fitness_score_add(
-   float* out, const uint8_t* buffer_tgt,
-   const uint8_t* buffer_test, int byte_width
+   float* out, const float* buffer_tgt,
+   const float* buffer_test, int float_width
 ) {
    int i = threadIdx.x;
    int stride = blockDim.x;
 
-   for( ; byte_width > i ; i += stride ) {
-      *out += abs( (buffer_tgt[i] - buffer_test[i]) );
+   for( ; float_width > i ; i += stride ) {
+      out[i] = 5; //abs( (buffer_tgt[i] - buffer_test[i]) );
    }
+}
+
+#include <stdio.h>
+extern "C" float fitness_score(
+   int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
+) {
+   float* d_line_master = NULL;
+   float* d_candidate = NULL;
+   float* d_out_diffs = NULL;
+   float* out_diffs = NULL;
+   float out = 0;
+   int i = 0;
+   int float_width = 0;
+
+   assert( sizeof( float ) == 4 * sizeof( uint8_t ) );
+   assert( 0 == width % 4 );
+   assert( sizeof( uint8_t ) == 1 );
+
+   float_width = width / 4;
+
+   out_diffs = (float*)calloc( 1, width );
+
+   cudaMalloc( (void**)&d_out_diffs, width );
+   cudaMalloc( (void**)&d_candidate, width );
+   cudaMalloc( (void**)&d_line_master, width );
+
+   cudaMemcpy( d_candidate, buffer_test, width, cudaMemcpyHostToDevice );
+   cudaMemcpy( d_line_master, buffer_tgt, width, cudaMemcpyHostToDevice );
+
+   fitness_score_add<<<0, 256>>>(
+      d_out_diffs, d_line_master, d_candidate, float_width );
+
+   cudaMemcpy( &out_diffs, d_out_diffs, width, cudaMemcpyDeviceToHost );
+
+   for( i = 0 ; width > i ; i++ ) {
+      printf( "%f\n", out_diffs[i] );
+   }
+
+   cudaFree( d_line_master );
+   cudaFree( d_candidate );
+   cudaFree( d_out_diffs );
+   free( out_diffs );
+
+   return out;
 }
 
 __global__
@@ -67,36 +111,6 @@ void combine_lines_c( uint8_t* line_dest, const uint8_t* line_src, int width ) {
          line_dest[i] = line_src[i];
       }
    }
-}
-
-extern "C" float fitness_score(
-   int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test
-) {
-   uint8_t* d_line_master = NULL;
-   uint8_t* d_candidate = NULL;
-   float* d_score_total = NULL;
-   float out = 0;
-
-   cudaMalloc(
-      (void**)&d_score_total, sizeof( float ) );
-   cudaMalloc(
-      (void**)&d_candidate, sizeof( uint8_t ) * width );
-   cudaMalloc(
-      (void**)&d_score_total, sizeof( uint8_t ) * width );
-
-   cudaMemcpy( d_candidate, buffer_test, width, cudaMemcpyHostToDevice );
-   cudaMemcpy( d_line_master, buffer_tgt, width, cudaMemcpyHostToDevice );
-
-   fitness_score_add<<<0, 256>>>(
-      d_score_total, d_line_master, d_candidate, width );
-
-   cudaMemcpy( &out, d_score_total, sizeof( float ), cudaMemcpyDeviceToHost );
-
-   cudaFree( d_line_master );
-   cudaFree( d_candidate );
-   cudaFree( d_score_total );
-
-   return out;
 }
 
 extern "C"

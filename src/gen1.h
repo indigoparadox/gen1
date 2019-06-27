@@ -5,8 +5,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define MAX_CANDIDATES 6
+#define MAX_CANDIDATES 20
 #define MAX_GENERATIONS 10000
+
+typedef uint16_t score_t;
 
 struct line {
    size_t byte_width;
@@ -18,8 +20,8 @@ struct line {
 };
 
 #ifndef USE_CUDA
-void generate_line( size_t width, uint8_t* buffer );
-float fitness_score(
+void generate_line( int width, uint8_t* buffer );
+score_t fitness_score(
    int width, const uint8_t* buffer_tgt, const uint8_t* buffer_test );
 void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width );
 #endif /* USE_CUDA */

@@ -9,7 +9,7 @@ gen1cuda: CC := nvcc
 all:
 
 testgen: $(OBJECTS) ../tests/check.o ../tests/check_gen.o
-	$(CC) -o $@ $^ $(CFLAGS) -lcheck_pic -lsubunit -lm -lrt -lpthread
+	$(CC) -o $@ $^ $(CFLAGS) -lcheck_pic -lm -lrt -lpthread
 
 gen1: $(OBJECTS) main.o
 	$(CC) -o $@ $^ $(CFLAGS)
