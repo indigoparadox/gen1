@@ -10,7 +10,16 @@
 #include <assert.h>
 
 pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t csv_mutex = PTHREAD_MUTEX_INITIALIZER;
 FILE* log_file = NULL;
+FILE* csv_file = NULL;
+
+void csv_open( const char* csvname ) {
+   if( NULL != csvname ) {
+      csv_file = fopen( csvname, "w" );
+      assert( NULL != csv_file );
+   }
+}
 
 void log_open( const char* logname ) {
    if( NULL != logname ) {
@@ -19,10 +28,33 @@ void log_open( const char* logname ) {
    }
 }
 
+void csv_close() {
+   if( NULL != csv_file ) {
+      fclose( csv_file );
+   }
+}
+
 void log_close() {
    if( NULL != log_file ) {
       fclose( log_file );
    }
+}
+
+void csv_out( const char* msg, ... ) {
+   va_list args;
+
+   if( NULL == csv_file ) {
+      return;
+   }
+  
+   va_start( args, msg );
+
+   /* Lock the log file before writing to it. */
+   pthread_mutex_lock( &csv_mutex );
+   vfprintf( csv_file, msg, args );
+   pthread_mutex_unlock( &csv_mutex );
+
+   va_end( args );
 }
 
 void log_out( const char* msg, ... ) {
