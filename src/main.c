@@ -10,15 +10,19 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
+#define MAX_CANDIDATES 20
+#define MAX_GENERATIONS 10000
+#define CHUNK_COUNT 16
+
 int main( int argc, char** argv ) {
    struct bmp_info* info = NULL;
    uint8_t* bmp_data = NULL;
    uint8_t* bmp_map = NULL;
-   int y, i, j;
+   int x, y, i, j, k, img_byte_width, img_chunk_width;
    size_t filesize;
    uint8_t* canvas_whole = NULL;
    uint8_t* canvas = NULL;
-   pthread_t* threads = NULL;
+   pthread_t** threads = NULL;
    struct line* line = NULL;
    FILE* canvas_file = NULL;
    int c = 0;
@@ -26,11 +30,13 @@ int main( int argc, char** argv ) {
    char* logname = NULL;
    char* outname = "out.bmp";
    size_t generations = MAX_GENERATIONS;
+   size_t candidates = MAX_CANDIDATES;
+   size_t chunks = CHUNK_COUNT;
    int start_line = 0;
    int end_line = 0;
    char* csvname = NULL;
 
-   while( (c = getopt( argc, argv, "b:l:g:s:e:o:t:c:" )) != -1 ) {
+   while( (c = getopt( argc, argv, "b:l:g:s:e:o:t:c:a:k:" )) != -1 ) {
       switch( c ) {
       case 'b':
          filename = optarg;
@@ -50,6 +56,14 @@ int main( int argc, char** argv ) {
 
       case 'g':
          generations = atoi( optarg );
+         break;
+
+      case 'a':
+         candidates = atoi( optarg );
+         break;
+
+      case 'k':
+         chunks = atoi( optarg );
          break;
 
       case 's':
@@ -95,7 +109,10 @@ int main( int argc, char** argv ) {
       &(bmp_map[sizeof( struct bmp_header )]), sizeof( struct bmp_info ) );
 
    /* Allocate a thread pool. */
-   threads = calloc( info->height, sizeof( pthread_t ) );
+   threads = calloc( info->height, sizeof( pthread_t* ) );
+   for( i = 0 ; info->height > i ; i++ ) {
+      threads[i] = calloc( chunks, sizeof( pthread_t ) );
+   }
 
    assert( start_line <= end_line );
    assert( start_line >= 0 );
@@ -106,27 +123,35 @@ int main( int argc, char** argv ) {
    }
 
    csv_out( "Thread,Generation,TopScore\n" );
+   img_byte_width = info->width * PX_BYTES;
+   img_chunk_width = img_byte_width / chunks;
+   assert( 0 == img_byte_width % img_chunk_width );
    for( y = end_line ; start_line <= y ; y-- ) {
-      i = (y * (info->width * PX_BYTES));
+      for( x = 0 ; chunks > x ; x++ ) {
+         i = (y * img_byte_width) + (x * img_chunk_width);
 
-      line = calloc( 1, sizeof( struct line ) );
-      line->byte_width = info->width * PX_BYTES;
-      line->idx = y;
-      line->generations = generations;
-      line->line_master = &(bmp_data[i]);
-      line->line_blank = &(canvas[i]);
-      line->candidates = calloc(
-         MAX_CANDIDATES, info->width * PX_BYTES );
-      for( j = 0 ; MAX_CANDIDATES > j ; j++ ) {
-         generate_line( line->byte_width,
-            &(line->candidates[j * info->width * PX_BYTES]) );
+         line = calloc( 1, sizeof( struct line ) );
+         line->byte_width = img_chunk_width;
+         line->y = y;
+         line->x = x * img_chunk_width;
+         line->candidates_sz = candidates;
+         line->generations = generations;
+         line->line_master = &(bmp_data[i]);
+         line->line_blank = &(canvas[i]);
+         line->candidates = calloc( candidates, img_chunk_width );
+         for( j = 0 ; candidates > j ; j++ ) {
+            generate_line( line->byte_width,
+               &(line->candidates[j * img_chunk_width]) );
+         }
+
+         pthread_create( &(threads[y][x]), NULL, evolve_thread, (void*)line );
       }
-
-      pthread_create( &(threads[y]), NULL, evolve_thread, (void*)line );
    }
 
    for( y = end_line ; start_line <= y ; y-- ) {
-      pthread_join( threads[y], NULL );
+      for( x = 0 ; chunks > x ; x++ ) {
+         pthread_join( threads[y][x], NULL );
+      }
    }
 
    /* Write the final bitmap to disk. */
