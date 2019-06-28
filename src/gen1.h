@@ -5,14 +5,13 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define MAX_CANDIDATES 20
-#define MAX_GENERATIONS 10000
-
 typedef uint16_t score_t;
 
 struct line {
    size_t byte_width;
-   int idx;
+   size_t candidates_sz;
+   int x;
+   int y;
    uint8_t* line_master;
    uint8_t* line_blank;
    uint8_t* candidates;

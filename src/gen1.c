@@ -29,12 +29,15 @@ score_t fitness_score(
    score_t score = 0;
 
    for( i = 0 ; width * PX_BYTES > i ; i++ ) {
-      score += abs( (buffer_tgt[i] - buffer_test[i]) );
+      /* score += abs( (buffer_tgt[i] - buffer_test[i]) ); */
+      if( buffer_test[i] == buffer_tgt[i] ) {
+         score++;
+      }
    }
 
    //score /= (width * PX_BYTES);
 
-   return UINT16_MAX - score;
+   return score;
 }
 
 void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width ) {
@@ -56,7 +59,7 @@ void combine_lines( uint8_t* line_dest, const uint8_t* line_src, int width ) {
 #endif /* !USE_CUDA */
 
 void* evolve_thread( void* line_raw ) {
-   score_t scores[MAX_CANDIDATES] = { 0 };
+   score_t* scores = NULL;
    uint8_t* candidate = NULL;
    uint8_t* top_candidate = NULL;
    uint8_t* provisional_candidate = NULL;
@@ -67,12 +70,13 @@ void* evolve_thread( void* line_raw ) {
    score_t provisional_score = 0, high_provisional_score = 0;
 
    provisional_candidate = calloc( line->byte_width, sizeof( uint8_t ) );
+   scores = calloc( line->candidates_sz, sizeof( score_t ) );
 
    for( generation = 0 ; line->generations > generation ; generation++ ) {
       high_provisional_score = 0;
       high_provisional_idx = 0;
 
-      for( i = 0 ; MAX_CANDIDATES > i ; i++ ) {
+      for( i = 0 ; line->candidates_sz > i ; i++ ) {
          /* Get the score for this candidate. */
          candidate = &(line->candidates[i]);
 
@@ -83,13 +87,14 @@ void* evolve_thread( void* line_raw ) {
          }
       }
 
-      log_out( "[T%d-G%d/%d] Top score: %d (%d)\n", 
-         line->idx, generation, line->generations,
+      log_out( "[T%dx%d-G%d/%d] Top score: %d (%d)\n", 
+         line->x, line->y, generation, line->generations,
          scores[top_score_idx], top_score_idx );
-      csv_out( "%d,%d,%d\n", line->idx, generation, scores[top_score_idx] );
+      csv_out( "%d,%d,%d,%d\n", line->x, line->y,
+         generation, scores[top_score_idx] );
 
       /* Create provisional candidates and get their scores. */
-      for( i = 0 ; MAX_CANDIDATES > i ; i++ ) {
+      for( i = 0 ; line->candidates_sz > i ; i++ ) {
          memcpy(
             provisional_candidate, 
             &(line->candidates[top_score_idx]),
@@ -108,8 +113,8 @@ void* evolve_thread( void* line_raw ) {
 
       /* Go with the highest provisional score. */
       log_out(
-         "[T%d-G%d/%d] Highest provisional score (idx): %d (%d)\n", 
-         line->idx, generation, line->generations, 
+         "[T%dx%d-G%d/%d] Highest provisional score (idx): %d (%d)\n", 
+         line->x, line->y, generation, line->generations, 
          high_provisional_score, high_provisional_idx );
       memcpy(
          provisional_candidate, 
@@ -130,21 +135,21 @@ void* evolve_thread( void* line_raw ) {
 
       /* Generate new lines based on new top score. */
       top_candidate = &(line->candidates[0]);
-      for( i = 1 ; MAX_CANDIDATES / 2 > i ; i++ ) {
+      for( i = 1 ; line->candidates_sz > i ; i++ ) {
          candidate = &(line->candidates[i]);
          for( j = 0 ; line->byte_width > j ; j++ ) {
             /* Subtle mutation per pixel. */
-            if( 0 == rand() / 10 ) {
-               candidate[j] = top_candidate[j] + (rand() % 30);
+            if( 0 == rand() % 150 ) {
+               candidate[j] = top_candidate[j] + (rand() % 10);
             } else {
-               candidate[j] = top_candidate[j] - (rand() % 30);
+               candidate[j] = top_candidate[j] - (rand() % 10);
             }
          }
       }
 
       /* Generate some radical new lines. */
-      for( i = MAX_CANDIDATES / 2 ; MAX_CANDIDATES > i ; i++ ) {
-         generate_line( line->byte_width, &(line->candidates[i]) );
+      for( i = line->candidates_sz / 2 ; line->candidates_sz > i ; i++ ) {
+         //generate_line( line->byte_width, &(line->candidates[i]) );
       }
    }
 
@@ -153,6 +158,7 @@ void* evolve_thread( void* line_raw ) {
 
    free( provisional_candidate );
    free( line->candidates );
+   free( scores );
 
    return NULL;
 }
